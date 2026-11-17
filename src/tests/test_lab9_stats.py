@@ -35,10 +35,22 @@ def test_kappa_undefined_for_constant_judge(stats):
     with pytest.raises(ValueError):
         stats.cohen_kappa(["PASS"] * 5, ["PASS"] * 5)
 
+def test_stats_reject_misaligned_or_nonbinary_labels(stats):
+    with pytest.raises(ValueError, match="same length"):
+        stats.confusion(["PASS"], [])
+    with pytest.raises(ValueError, match="PASS or FAIL"):
+        stats.confusion(["MAYBE"], ["PASS"])
+
+def test_kappa_undefined_for_empty_labels(stats):
+    with pytest.raises(ValueError, match="empty"):
+        stats.cohen_kappa([], [])
+
 
 def test_rogan_gladen_clips(stats):
     assert stats.rogan_gladen(0.28, 0.8, 66 / 70) == pytest.approx(0.3, abs=0.01)
     assert stats.rogan_gladen(0.0, 0.8, 0.9) == 0.0
+    with pytest.raises(ValueError, match="undefined"):
+        stats.rogan_gladen(0.5, 0.5, 0.5)
 
 
 def test_paired_bootstrap_reference(stats):
@@ -49,3 +61,12 @@ def test_paired_bootstrap_reference(stats):
 
 def test_paired_bootstrap_identical_is_zero(stats):
     assert stats.paired_bootstrap([1, 0, 1], [1, 0, 1]) == (0.0, 0.0, 0.0)
+
+
+def test_paired_bootstrap_rejects_invalid_inputs(stats):
+    with pytest.raises(ValueError, match="same length"):
+        stats.paired_bootstrap([1.0], [1.0, 0.0])
+    with pytest.raises(ValueError, match="at least one pair"):
+        stats.paired_bootstrap([], [])
+    with pytest.raises(ValueError, match="confidence"):
+        stats.paired_bootstrap([1.0], [0.0], confidence=1.0)

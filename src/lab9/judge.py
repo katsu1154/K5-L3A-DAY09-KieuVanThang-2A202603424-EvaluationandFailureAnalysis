@@ -19,7 +19,18 @@ FLOORS = {"kappa": 0.6, "precision": 0.8, "recall": 0.7}
 
 
 def calibrate(path: Path) -> dict:
-    rows = list(csv.DictReader(path.open(encoding="utf-8")))
+    with path.open(encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream)
+        required = {"item_id", "human", "judge", "reply"}
+        missing = required - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"judge CSV is missing columns: {sorted(missing)}")
+        rows = list(reader)
+    if not rows:
+        raise ValueError("judge CSV contains no labeled rows")
+    for row_number, row in enumerate(rows, start=2):
+        if any(not row.get(field) or not row[field].strip() for field in required):
+            raise ValueError(f"judge CSV has an empty required value on row {row_number}")
     human = [r["human"].strip().upper() for r in rows]
     judge = [r["judge"].strip().upper() for r in rows]
     p, r = stats.precision_recall(human, judge)

@@ -29,13 +29,42 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+FAILURE_MODES_BY_MATRIX = {
+    "T01": ("FM-01", "FM-07"),
+    "T02": ("FM-03",),
+    "T03": ("FM-01",),
+    "T04": ("FM-01",),
+    "T05": ("FM-01",),
+    "T06": ("FM-06",),
+    "T07": ("FM-02",),
+    "T08": ("FM-08",),
+    "T09": ("FM-02",),
+    "T10": ("FM-01", "FM-07"),
+    "T11": ("FM-07",),
+    "T12": ("FM-07",),
+    "T13": ("FM-02",),
+    "T14": ("FM-04", "FM-05", "FM-08"),
+}
+
+TRACE_EVIDENCE_BY_MODE = {
+    "FM-01": "probe_fm01 C-005@11, event 1 debug_claim_row (values redacted)",
+    "FM-02": "probe_fm02 C-007@11, result resolved while label is denied",
+    "FM-03": "seeded_regression C-002@11, event 3 model_override delay_days=5; DB delay=2",
+    "FM-04": "probe_fm04 C-014@11, proposal=180000 from parts 30000+150000",
+    "FM-05": "probe_fm05 C-014@11, proposal=120000 after history=30000; ledger=90000",
+    "FM-06": "probe_fm06 C-006@11, quote uses SHIP-LATE-OLD for 300000",
+    "FM-07": "probe_fm07 C-010@11, batch_refund writes C-001; unexpected_rows=1",
+    "FM-08": "probe_fm08 C-008@11, reply=35000 while ledger=20000",
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def sha12(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    contents = path.read_text(encoding="utf-8").encode("utf-8")
+    return hashlib.sha256(contents).hexdigest()[:12]
 
 
 def build(source: Path = SOURCE) -> tuple[int, int]:
@@ -43,14 +72,22 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
     items, labels = [], {}
     for n, claim in enumerate(claims, start=1):
         item_id = f"E-{n:03d}"
+        matrix_id = claim.get("matrix_id")
+        if matrix_id not in FAILURE_MODES_BY_MATRIX:
+            raise ValueError(f"no M1 failure-mode annotation for matrix_id {matrix_id!r}")
+        failure_modes = list(FAILURE_MODES_BY_MATRIX[matrix_id])
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
-            "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
-                           "label_by": "lab8_matrix", "checked_by": None},
+            "failure_modes": failure_modes,
+            "provenance": {
+                "source": "lab8_public",
+                "matrix_id": matrix_id,
+                "from_trace": [TRACE_EVIDENCE_BY_MODE[mode] for mode in failure_modes],
+                "generator": None,
+                "label_by": "lab8_matrix",
+                "checked_by": "M1 trace review",
+            },
             "split": "regression",
             "eval_set_version": VERSION,
         })
@@ -115,6 +152,11 @@ def check(items_path: Path = ITEMS, labels_path: Path = LABELS) -> list[str]:
             problems.append(f"{item['item_id']}: inline label")
         if item.get("claim_id") not in labels:
             problems.append(f"{item['item_id']}: no label for {item.get('claim_id')}")
+        provenance = item.get("provenance")
+        if not isinstance(provenance, dict) or any(
+            not provenance.get(field) for field in ("source", "from_trace", "label_by", "checked_by")
+        ):
+            problems.append(f"{item.get('item_id')}: incomplete provenance")
         if not item.get("failure_modes"):
             problems.append(f"{item['item_id']}: failure_modes empty (fill from taxonomy)")
         problems += [f"{item['item_id']}: {fm} (fill config/fm_map.yaml)"
