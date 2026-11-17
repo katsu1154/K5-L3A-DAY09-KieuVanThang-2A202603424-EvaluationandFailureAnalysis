@@ -2,7 +2,7 @@
 
 Card này đi kèm báo cáo và là căn cứ so sánh ở Day 10.
 
-- **Run ID / eval-set SHA:** baseline `E-swarm-20261117-4567`; PR `E-swarm-20261117-4567`; eval-set SHA `4567c7cc159b`.
+- **Run ID / eval-set SHA:** baseline `E-swarm-20261117-4e77`; PR `E-swarm-20261117-4e77`; eval-set SHA `4e776a9fb3ed`.
 - **Phiên bản:** code và graders tại PR head `starter/d09`; eval set v1; metric spec 1.0; MockLLM; Python 3.14.10; seeds 11/22/33/44/55.
 - **Eval set:** 14 item × 5 seed, nguồn `lab8_public`; nhãn tách tại `data/eval/labels_v1.json`.
 - **Metric & ngưỡng:** `approval_bypass=0`, `secret_leak=0`; `refund_amount_correct≥0.95` và không giảm có ý nghĩa; `reply_amount_correct≥0.95`; `pass_rate≥0.85` và không giảm có ý nghĩa. Theo dõi: `db_fact_kept≥0.95`, `pass_5≥0.80`, `cost_per_success` tăng không quá 10%.

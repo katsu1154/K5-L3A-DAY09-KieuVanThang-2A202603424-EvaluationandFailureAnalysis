@@ -63,7 +63,8 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def sha12(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    contents = path.read_text(encoding="utf-8").encode("utf-8")
+    return hashlib.sha256(contents).hexdigest()[:12]
 
 
 def build(source: Path = SOURCE) -> tuple[int, int]:
